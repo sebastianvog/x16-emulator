@@ -193,7 +193,7 @@ Module.expectedDataFileDownloads++;
   }
 
  }
- loadPackage({"files": [{"start": 0, "audio": 0, "end": 40960, "filename": "/rom.bin"}, {"start": 40960, "audio": 0, "end": 45056, "filename": "/chargen.bin"}], "remote_package_size": 45056, "package_uuid": "05294947-083d-446f-be4f-61cb3eff8a90"});
+ loadPackage({"files": [{"start": 0, "audio": 0, "end": 49152, "filename": "/rom.bin"}, {"start": 49152, "audio": 0, "end": 53248, "filename": "/chargen.bin"}], "remote_package_size": 53248, "package_uuid": "e73fea26-b9ac-4d4f-b5e3-50cd38bf7dc5"});
 
 })();
 
@@ -1393,11 +1393,11 @@ function updateGlobalBufferAndViews(buf) {
 if (!ENVIRONMENT_IS_PTHREAD) { // Pthreads have already initialized these variables in src/worker.js, where they were passed to the thread worker at startup time
 
 var STATIC_BASE = 1024,
-    STACK_BASE = 3718768,
+    STACK_BASE = 3714528,
     STACKTOP = STACK_BASE,
-    STACK_MAX = 8961648,
-    DYNAMIC_BASE = 8961648,
-    DYNAMICTOP_PTR = 3718736;
+    STACK_MAX = 8957408,
+    DYNAMIC_BASE = 8957408,
+    DYNAMICTOP_PTR = 3714496;
 
 assert(STACK_BASE % 16 === 0, 'stack must start aligned');
 assert(DYNAMIC_BASE % 16 === 0, 'heap must start aligned');
@@ -1975,7 +1975,7 @@ function _initPthreadsJS(){ PThread.initRuntime(); }
 
 
 
-// STATICTOP = STATIC_BASE + 3717744;
+// STATICTOP = STATIC_BASE + 3713504;
 /* global initializers */ if (!ENVIRONMENT_IS_PTHREAD) __ATINIT__.push({ func: function() { globalCtors() } });
 
 
@@ -1989,7 +1989,7 @@ memoryInitializer = "x16emu.html.mem";
 
 /* no memory initializer */
 var tempDoublePtr;
-if (!ENVIRONMENT_IS_PTHREAD) tempDoublePtr = 3718752;
+if (!ENVIRONMENT_IS_PTHREAD) tempDoublePtr = 3714512;
 assert(tempDoublePtr % 8 == 0);
 
 function copyTempFloat(ptr) { // functions, because inlining this code increases code size too much
@@ -2123,7 +2123,7 @@ function copyTempDouble(ptr) {
   var ERRNO_CODES={EPERM:1,ENOENT:2,ESRCH:3,EINTR:4,EIO:5,ENXIO:6,E2BIG:7,ENOEXEC:8,EBADF:9,ECHILD:10,EAGAIN:11,EWOULDBLOCK:11,ENOMEM:12,EACCES:13,EFAULT:14,ENOTBLK:15,EBUSY:16,EEXIST:17,EXDEV:18,ENODEV:19,ENOTDIR:20,EISDIR:21,EINVAL:22,ENFILE:23,EMFILE:24,ENOTTY:25,ETXTBSY:26,EFBIG:27,ENOSPC:28,ESPIPE:29,EROFS:30,EMLINK:31,EPIPE:32,EDOM:33,ERANGE:34,ENOMSG:42,EIDRM:43,ECHRNG:44,EL2NSYNC:45,EL3HLT:46,EL3RST:47,ELNRNG:48,EUNATCH:49,ENOCSI:50,EL2HLT:51,EDEADLK:35,ENOLCK:37,EBADE:52,EBADR:53,EXFULL:54,ENOANO:55,EBADRQC:56,EBADSLT:57,EDEADLOCK:35,EBFONT:59,ENOSTR:60,ENODATA:61,ETIME:62,ENOSR:63,ENONET:64,ENOPKG:65,EREMOTE:66,ENOLINK:67,EADV:68,ESRMNT:69,ECOMM:70,EPROTO:71,EMULTIHOP:72,EDOTDOT:73,EBADMSG:74,ENOTUNIQ:76,EBADFD:77,EREMCHG:78,ELIBACC:79,ELIBBAD:80,ELIBSCN:81,ELIBMAX:82,ELIBEXEC:83,ENOSYS:38,ENOTEMPTY:39,ENAMETOOLONG:36,ELOOP:40,EOPNOTSUPP:95,EPFNOSUPPORT:96,ECONNRESET:104,ENOBUFS:105,EAFNOSUPPORT:97,EPROTOTYPE:91,ENOTSOCK:88,ENOPROTOOPT:92,ESHUTDOWN:108,ECONNREFUSED:111,EADDRINUSE:98,ECONNABORTED:103,ENETUNREACH:101,ENETDOWN:100,ETIMEDOUT:110,EHOSTDOWN:112,EHOSTUNREACH:113,EINPROGRESS:115,EALREADY:114,EDESTADDRREQ:89,EMSGSIZE:90,EPROTONOSUPPORT:93,ESOCKTNOSUPPORT:94,EADDRNOTAVAIL:99,ENETRESET:102,EISCONN:106,ENOTCONN:107,ETOOMANYREFS:109,EUSERS:87,EDQUOT:122,ESTALE:116,ENOTSUP:95,ENOMEDIUM:123,EILSEQ:84,EOVERFLOW:75,ECANCELED:125,ENOTRECOVERABLE:131,EOWNERDEAD:130,ESTRPIPE:86};
   
   
-  var __main_thread_futex_wait_address; if (ENVIRONMENT_IS_PTHREAD) __main_thread_futex_wait_address = PthreadWorkerInit.__main_thread_futex_wait_address; else PthreadWorkerInit.__main_thread_futex_wait_address = __main_thread_futex_wait_address = 3718720;function _emscripten_futex_wake(addr, count) {
+  var __main_thread_futex_wait_address; if (ENVIRONMENT_IS_PTHREAD) __main_thread_futex_wait_address = PthreadWorkerInit.__main_thread_futex_wait_address; else PthreadWorkerInit.__main_thread_futex_wait_address = __main_thread_futex_wait_address = 3714480;function _emscripten_futex_wake(addr, count) {
       if (addr <= 0 || addr > HEAP8.length || addr&3 != 0 || count < 0) return -22;
       if (count == 0) return 0;
       // Waking (at least) INT_MAX waiters is defined to mean wake all callers.
@@ -2156,7 +2156,7 @@ function copyTempDouble(ptr) {
         _emscripten_register_main_browser_thread_id(PThread.mainThreadBlock);
       },initMainThreadBlock:function() {
         if (ENVIRONMENT_IS_PTHREAD) return undefined;
-        PThread.mainThreadBlock = 3717936;
+        PThread.mainThreadBlock = 3713696;
   
         for (var i = 0; i < 244/4; ++i) HEAPU32[PThread.mainThreadBlock/4+i] = 0;
   
@@ -2169,7 +2169,7 @@ function copyTempDouble(ptr) {
         HEAP32[((headPtr)>>2)]=headPtr;
   
         // Allocate memory for thread-local storage.
-        var tlsMemory = 3718192;
+        var tlsMemory = 3713952;
         for (var i = 0; i < 128; ++i) HEAPU32[tlsMemory/4+i] = 0;
         Atomics.store(HEAPU32, (PThread.mainThreadBlock + 116 ) >> 2, tlsMemory); // Init thread-local-storage memory array.
         Atomics.store(HEAPU32, (PThread.mainThreadBlock + 52 ) >> 2, PThread.mainThreadBlock); // Main thread ID.
@@ -9352,6 +9352,23 @@ function copyTempDouble(ptr) {
     }
   
 
+  function _emscripten_run_script_string(ptr) {
+      var s = eval(UTF8ToString(ptr));
+      if (s == null) {
+        return 0;
+      }
+      s += '';
+      var me = _emscripten_run_script_string;
+      var len = lengthBytesUTF8(s);
+      if (!me.bufferSize || me.bufferSize < len+1) {
+        if (me.bufferSize) _free(me.buffer);
+        me.bufferSize = len+1;
+        me.buffer = _malloc(me.bufferSize);
+      }
+      stringToUTF8(s, me.buffer, me.bufferSize);
+      return me.buffer;
+    }
+
   function _emscripten_sample_gamepad_data() {
   if (ENVIRONMENT_IS_PTHREAD) return _emscripten_proxy_to_main_thread_js(40, 1);
   
@@ -10406,6 +10423,14 @@ function copyTempDouble(ptr) {
       return 0;
     }
 
+  function _time(ptr) {
+      var ret = (Date.now()/1000)|0;
+      if (ptr) {
+        HEAP32[((ptr)>>2)]=ret;
+      }
+      return ret;
+    }
+
 if (!ENVIRONMENT_IS_PTHREAD) PThread.initMainThreadBlock();;
 if (ENVIRONMENT_IS_NODE) {
     _emscripten_get_now = function _emscripten_get_now_actual() {
@@ -10816,6 +10841,7 @@ var asmLibraryArg = {
   "_emscripten_request_fullscreen_strategy": _emscripten_request_fullscreen_strategy,
   "_emscripten_request_pointerlock": _emscripten_request_pointerlock,
   "_emscripten_resize_heap": _emscripten_resize_heap,
+  "_emscripten_run_script_string": _emscripten_run_script_string,
   "_emscripten_sample_gamepad_data": _emscripten_sample_gamepad_data,
   "_emscripten_set_blur_callback_on_thread": _emscripten_set_blur_callback_on_thread,
   "_emscripten_set_canvas_element_size": _emscripten_set_canvas_element_size,
@@ -10862,6 +10888,7 @@ var asmLibraryArg = {
   "_pthread_join": _pthread_join,
   "_sigaction": _sigaction,
   "_signal": _signal,
+  "_time": _time,
   "abortOnCannotGrowMemory": abortOnCannotGrowMemory,
   "demangle": demangle,
   "demangleAll": demangleAll,
