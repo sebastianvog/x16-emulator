@@ -193,7 +193,7 @@ Module.expectedDataFileDownloads++;
   }
 
  }
- loadPackage({"files": [{"start": 0, "audio": 0, "end": 131072, "filename": "/rom.bin"}], "remote_package_size": 131072, "package_uuid": "04dda829-6c83-420e-84f0-733cf3819b70"});
+ loadPackage({"files": [{"start": 0, "audio": 0, "end": 131072, "filename": "/rom.bin"}], "remote_package_size": 131072, "package_uuid": "7daf5a0e-3f49-44c0-843d-9ab337406370"});
 
 })();
 
