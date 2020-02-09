@@ -52,8 +52,7 @@ if (layouts.includes(lang)) {
 
 var url = new URL(window.location.href);
 var prg_link = url.searchParams.get("prg");
-console.log(prg_link);
-openFs();
+
 
 
 var Module = {
@@ -109,6 +108,7 @@ var Module = {
 
 if (prg_link) {
     Module.arguments.push('-web-file', prg_link,'run');
+    openFs();
 }
 
 
