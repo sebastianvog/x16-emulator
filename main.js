@@ -68,9 +68,7 @@ var Module = {
         }
     ],
     arguments: [ //set key map to user's lang
-        '-keymap', lang,
-        '-web-file', prg_link,
-        '-run'
+        '-keymap', lang
     ],
     print: (function() {
 
@@ -109,6 +107,9 @@ var Module = {
     }
 };
 
+if (prg_link) {
+    Module.arguments.push('-web-file', prg_link,'run');
+}
 
 
 
