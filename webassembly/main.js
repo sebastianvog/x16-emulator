@@ -53,7 +53,14 @@ if (layouts.includes(lang)) {
 var url = new URL(window.location.href);
 var prg_link = url.searchParams.get("prg");
 
+var emuArguments = [ '-keymap', lang];
 
+if (prg_link) {
+    emuArguments.push('-web-file', prg_link, '-run');
+  
+    openFs();
+}
+console.log('Emulator arguments: ' + emuArguments );
 
 var Module = {
     preRun: [
@@ -66,9 +73,7 @@ var Module = {
             canvas.focus();
         }
     ],
-    arguments: [ //set key map to user's lang
-        '-keymap', lang
-    ],
+    arguments: emuArguments,
     print: (function() {
 
         if (output) output.value = ''; // clear browser cache
@@ -106,11 +111,6 @@ var Module = {
     }
 };
 
-if (prg_link) {
-    Module.arguments.push('-web-file', prg_link,'run');
-    console.log('Passed in web resource: ' + prg_link);
-    openFs();
-}
 
 
 
@@ -119,7 +119,6 @@ logOutput('Downloading file...');
 
 window.onerror = function() {
     Module.setStatus('Exception thrown, see JavaScript console');
-    spinnerElement.style.display = 'none';
     Module.setStatus = function(text) {
         if (text) Module.printErr('[post-exception status] ' + text);
     };
