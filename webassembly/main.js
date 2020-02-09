@@ -108,6 +108,7 @@ var Module = {
 
 if (prg_link) {
     Module.arguments.push('-web-file', prg_link,'run');
+    console.log('Passed in web resource: ' + prg_link);
     openFs();
 }
 
