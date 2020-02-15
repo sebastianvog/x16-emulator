@@ -1,18 +1,15 @@
+
 // DOM elements
 const statusElement = document.getElementById('status');
-const progressElement = document.getElementById('progress');
-const spinnerElement = document.getElementById('spinner');
 const output = document.getElementById('output');
 const canvas = document.getElementById('canvas');
 const code = document.getElementById('code');
-
 
 // Getting Audio Context
 var audioContext;
 
 window.addEventListener('load', init, false);
 function init() {
-
 
   try {
     window.AudioContext = window.AudioContext||window.webkitAudioContext;
@@ -51,21 +48,40 @@ if (layouts.includes(lang)) {
 }
 
 var url = new URL(window.location.href);
-var prg_link = url.searchParams.get("prg");
+var manifest_link = url.searchParams.get("manifest");
 
 var emuArguments = [ '-keymap', lang];
 
-if (prg_link) {
-    emuArguments.push('-web-file', prg_link, '-run');
-  
+if (manifest_link) {
     openFs();
 }
-console.log('Emulator arguments: ' + emuArguments );
 
 var Module = {
     preRun: [
         function() { //Set the keyboard handling element (it's document by default). Keystrokes are stopped from propagating by emscripten, maybe there's an option to disable this?
             ENV.SDL_EMSCRIPTEN_KEYBOARD_ELEMENT = "#canvas";
+        },
+        function() {
+            addRunDependency('load-manifest');
+            fetch(manifest_link + 'manifest.json').then(function(response) {
+                return response.json();
+              }).then(function(manifest) {
+
+                if (manifest.start_prg)
+                {
+                    emuArguments.push('-prg', manifest.start_prg, '-run');
+                }
+                console.log(manifest);
+                manifest.resources.forEach(element => {
+                    element = manifest_link + element;
+                    let filename = element.replace(/^.*[\\\/]/, '')
+                    FS.createPreloadedFile('/', filename, element, true, true);
+
+                });
+                removeRunDependency('load-manifest');
+              }).catch(function() {
+                console.log("Booo");
+              });
         }
     ],
     postRun: [
@@ -111,9 +127,6 @@ var Module = {
     }
 };
 
-
-
-
 Module.setStatus('Downloading file...');
 logOutput('Downloading file...');
 
@@ -123,6 +136,7 @@ window.onerror = function() {
         if (text) Module.printErr('[post-exception status] ' + text);
     };
 };
+
 
 
 function enableAudio(enable)
