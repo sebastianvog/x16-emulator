@@ -4,6 +4,9 @@ const statusElement = document.getElementById('status');
 const output = document.getElementById('output');
 const canvas = document.getElementById('canvas');
 const code = document.getElementById('code');
+const progressElement = document.getElementById('progress');
+const spinnerElement = document.getElementById('spinner');
+
 
 // Getting Audio Context
 var audioContext;
@@ -118,7 +121,29 @@ var Module = {
         return canvas;
     })(),
     setStatus: function (text) {
-        statusElement.innerHTML = '';
+        if (!Module.setStatus.last) Module.setStatus.last = {
+            time: Date.now(),
+            text: ''
+        };
+        if (text === Module.setStatus.last.text) return;
+        const m = text.match(/([^(]+)\((\d+(\.\d+)?)\/(\d+)\)/);
+        let now = Date.now();
+        if (m && now - Module.setStatus.last.time < 30) return; // if this is a progress update, skip it if too soon
+        Module.setStatus.last.time = now;
+        Module.setStatus.last.text = text;
+        if (m) {
+            text = m[1];
+            progressElement.value = parseInt(m[2]) * 100;
+            progressElement.max = parseInt(m[4]) * 100;
+            progressElement.hidden = false;
+            spinnerElement.hidden = false;
+        } else {
+            progressElement.value = null;
+            progressElement.max = null;
+            progressElement.hidden = true;
+            if (!text) spinnerElement.hidden = true;
+        }
+        statusElement.innerHTML = text;
         logOutput(text);
     },
     totalDependencies: 0,
@@ -133,6 +158,7 @@ logOutput('Downloading file...');
 
 window.onerror = function () {
     Module.setStatus('Exception thrown, see JavaScript console');
+    spinnerElement.style.display = 'none';
     Module.setStatus = function (text) {
         if (text) Module.printErr('[post-exception status] ' + text);
     };
