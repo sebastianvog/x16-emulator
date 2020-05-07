@@ -195,7 +195,7 @@ var Module = typeof Module !== 'undefined' ? Module : {};
     }
   
    }
-   loadPackage({"files": [{"filename": "/rom.bin", "start": 0, "end": 114688, "audio": 0}], "remote_package_size": 114688, "package_uuid": "ba1138ed-f2e1-4475-af8a-4c0039d0b303"});
+   loadPackage({"files": [{"filename": "/rom.bin", "start": 0, "end": 114688, "audio": 0}], "remote_package_size": 114688, "package_uuid": "3e4d51f9-183f-41c1-a8a5-e7c9074977da"});
   
   })();
   
@@ -5649,17 +5649,18 @@ function _emscripten_asm_const_iii(code, sigPtr, argbuf) {
 
   
   
-  function __webgl_acquireInstancedArraysExtension(ctx) {
+  function __webgl_enable_ANGLE_instanced_arrays(ctx) {
       // Extension available in WebGL 1 from Firefox 26 and Google Chrome 30 onwards. Core feature in WebGL 2.
       var ext = ctx.getExtension('ANGLE_instanced_arrays');
       if (ext) {
         ctx['vertexAttribDivisor'] = function(index, divisor) { ext['vertexAttribDivisorANGLE'](index, divisor); };
         ctx['drawArraysInstanced'] = function(mode, first, count, primcount) { ext['drawArraysInstancedANGLE'](mode, first, count, primcount); };
         ctx['drawElementsInstanced'] = function(mode, count, type, indices, primcount) { ext['drawElementsInstancedANGLE'](mode, count, type, indices, primcount); };
+        return 1;
       }
     }
   
-  function __webgl_acquireVertexArrayObjectExtension(ctx) {
+  function __webgl_enable_OES_vertex_array_object(ctx) {
       // Extension available in WebGL 1 from Firefox 25 and WebKit 536.28/desktop Safari 6.0.3 onwards. Core feature in WebGL 2.
       var ext = ctx.getExtension('OES_vertex_array_object');
       if (ext) {
@@ -5667,14 +5668,16 @@ function _emscripten_asm_const_iii(code, sigPtr, argbuf) {
         ctx['deleteVertexArray'] = function(vao) { ext['deleteVertexArrayOES'](vao); };
         ctx['bindVertexArray'] = function(vao) { ext['bindVertexArrayOES'](vao); };
         ctx['isVertexArray'] = function(vao) { return ext['isVertexArrayOES'](vao); };
+        return 1;
       }
     }
   
-  function __webgl_acquireDrawBuffersExtension(ctx) {
+  function __webgl_enable_WEBGL_draw_buffers(ctx) {
       // Extension available in WebGL 1 from Firefox 28 onwards. Core feature in WebGL 2.
       var ext = ctx.getExtension('WEBGL_draw_buffers');
       if (ext) {
         ctx['drawBuffers'] = function(n, bufs) { ext['drawBuffersWEBGL'](n, bufs); };
+        return 1;
       }
     }var GL={counter:1,lastError:0,buffers:[],mappedBuffers:{},programs:[],framebuffers:[],renderbuffers:[],textures:[],uniforms:[],shaders:[],vaos:[],contexts:[],currentContext:null,offscreenCanvases:{},timerQueriesEXT:[],programInfos:{},stringCache:{},unpackAlignment:4,init:function() {
         var miniTempFloatBuffer = new Float32Array(GL.MINI_TEMP_BUFFER_SIZE);
@@ -5768,11 +5771,10 @@ function _emscripten_asm_const_iii(code, sigPtr, argbuf) {
   
         // Detect the presence of a few extensions manually, this GL interop layer itself will need to know if they exist.
   
-        if (context.version < 2) {
-          __webgl_acquireInstancedArraysExtension(GLctx);
-          __webgl_acquireVertexArrayObjectExtension(GLctx);
-          __webgl_acquireDrawBuffersExtension(GLctx);
-        }
+        // Extensions that are only available in WebGL 1 (the calls will be no-ops if called on a WebGL 2 context active)
+        __webgl_enable_ANGLE_instanced_arrays(GLctx);
+        __webgl_enable_OES_vertex_array_object(GLctx);
+        __webgl_enable_WEBGL_draw_buffers(GLctx);
   
         GLctx.disjointTimerQueryExt = GLctx.getExtension("EXT_disjoint_timer_query");
   
