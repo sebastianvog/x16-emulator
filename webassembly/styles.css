@@ -65,9 +65,6 @@ body {
 }
 
 
-.code-container {
-
-}
 #code {
     width: 100%;
     padding: 0;
@@ -133,6 +130,7 @@ body {
     font-size: 50px;
     margin-right: 10px;
 }
+
 .emu-container.fullscreen {
     position: absolute;
     top: 0;
