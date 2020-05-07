@@ -1,24 +1,25 @@
+
 // DOM elements
 const statusElement = document.getElementById('status');
-const progressElement = document.getElementById('progress');
-const spinnerElement = document.getElementById('spinner');
 const output = document.getElementById('output');
 const canvas = document.getElementById('canvas');
 const code = document.getElementById('code');
+const progressElement = document.getElementById('progress');
+const spinnerElement = document.getElementById('spinner');
 
-
-// Getting Audio Context
+// Audio Context Setup
 var audioContext;
 
 window.addEventListener('load', init, false);
 function init() {
-  try {
-    window.AudioContext = window.AudioContext||window.webkitAudioContext;
-    audioContext = new AudioContext();
-  }
-  catch(e) {
-      console.log("AudioContext not supported on this Browser.")
-  }
+
+    try {
+        window.AudioContext = window.AudioContext || window.webkitAudioContext;
+        audioContext = new AudioContext();
+    }
+    catch (e) {
+        console.log("AudioContext not supported on this Browser.")
+    }
 }
 
 //detecting keyboard layout...
@@ -48,49 +49,81 @@ if (layouts.includes(lang)) {
     lang = 'en-us';
 }
 
+var url = new URL(window.location.href);
+var manifest_link = url.searchParams.get("manifest");
+                
+if (manifest_link && !manifest_link.endsWith('/')) {
+    manifest_link = manifest_link + '/';
+}
 
+var emuArguments = ['-keymap', lang];
+
+if (manifest_link) {
+    openFs();
+}
 
 var Module = {
     preRun: [
-        function() { //Set the keyboard handling element (it's document by default). Keystrokes are stopped from propagating by emscripten, maybe there's an option to disable this?
+        function () { //Set the keyboard handling element (it's document by default). Keystrokes are stopped from propagating by emscripten, maybe there's an option to disable this?
             ENV.SDL_EMSCRIPTEN_KEYBOARD_ELEMENT = "#canvas";
+        },
+        function () {
+            if (manifest_link) {
+                addRunDependency('load-manifest');
+                fetch(manifest_link + 'manifest.json').then(function (response) {
+                    return response.json();
+                }).then(function (manifest) {
+                    if (manifest.start_prg) {
+                        emuArguments.push('-prg', manifest.start_prg, '-run');
+                    }
+                    console.log("Loading from manifest:")
+                    console.log(manifest);
+                    manifest.resources.forEach(element => {
+                        element = manifest_link + element;
+                        let filename = element.replace(/^.*[\\\/]/, '')
+                        FS.createPreloadedFile('/', filename, element, true, true);
+
+                    });
+                    removeRunDependency('load-manifest');
+                }).catch(function () {
+                    console.log("Unable to read manifest. Check the manifest http parameter");
+                });
+            }
         }
     ],
     postRun: [
-        function() {
+        function () {
             canvas.focus();
         }
     ],
-    arguments: [ //set key map to user's lang
-        '-keymap', lang
-    ],
-    print: (function() {
+    arguments: emuArguments,
+    print: (function () {
 
         if (output) output.value = ''; // clear browser cache
-        return function(text) {
+        return function (text) {
             if (arguments.length > 1) text = Array.prototype.slice.call(arguments).join(' ');
             logOutput(text);
         };
     })(),
-    printErr: function(text) {
+    printErr: function (text) {
         if (arguments.length > 1) text = Array.prototype.slice.call(arguments).join(' ');
 
         logOutput("[error] " + text);
 
 
     },
-    canvas: (function() {
+    canvas: (function () {
 
         // As a default initial behavior, pop up an alert when webgl context is lost. To make your
         // application robust, you may want to override this behavior before shipping!
         // See http://www.khronos.org/registry/webgl/specs/latest/1.0/#5.15.2
-        canvas.addEventListener("webglcontextlost", function(e) {
+        canvas.addEventListener("webglcontextlost", function (e) {
             alert('WebGL context lost. You will need to reload the page.');
             e.preventDefault();
         }, false);
         return canvas;
     })(),
-    setStatus: function(text) {
+    setStatus: function (text) {
         if (!Module.setStatus.last) Module.setStatus.last = {
             time: Date.now(),
             text: ''
@@ -117,40 +150,37 @@ var Module = {
         logOutput(text);
     },
     totalDependencies: 0,
-    monitorRunDependencies: function(left) {
+    monitorRunDependencies: function (left) {
         this.totalDependencies = Math.max(this.totalDependencies, left);
         Module.setStatus(left ? 'Preparing... (' + (this.totalDependencies - left) + '/' + this.totalDependencies + ')' : 'All downloads complete.');
     }
 };
 
-
-
-
 Module.setStatus('Downloading file...');
 logOutput('Downloading file...');
 
-window.onerror = function() {
+window.onerror = function () {
     Module.setStatus('Exception thrown, see JavaScript console');
     spinnerElement.style.display = 'none';
-    Module.setStatus = function(text) {
+    Module.setStatus = function (text) {
         if (text) Module.printErr('[post-exception status] ' + text);
     };
 };
 
-
-function enableAudio(enable)
-{
-    if (enable === true)
-    {
-        if (audioContext && audioContext.state != "running")
-        {
+function toggleAudio() {
+        if (audioContext && audioContext.state != "running") {
             audioContext.resume().then(() => {
                 console.log("Resumed Audio.")
-                Module.ccall("j2c_start_audio", "void", ["void"], []);
-              });
+                Module.ccall("j2c_start_audio", "void", ["bool"], [true]);
+            });
+        } else if (audioContext && audioContext.state == "running") {
+            audioContext.suspend().then(function () {
+                console.log("Stopped Audio.")
+                Module.ccall("j2c_start_audio", "void", ["bool"], [false]);
+            });
         }
+        canvas.focus();
     }
-}
 
 function resetEmulator() {
     j2c_reset = Module.cwrap("j2c_reset", "void", []);
@@ -159,10 +189,8 @@ function resetEmulator() {
 }
 
 function runCode() {
-    enableAudio(true);
     Module.ccall("j2c_paste", "void", ["string"], ['\nNEW\n' + code.value + '\nRUN\n']);
     canvas.focus();
-
 }
 
 function closeFs() {

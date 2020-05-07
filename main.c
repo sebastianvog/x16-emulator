@@ -87,6 +87,8 @@ char *scale_quality = "best";
 char window_title[30];
 int32_t last_perf_update = 0;
 int32_t perf_frame_count = 0;
+int audio_buffers = 8;
+const char *audio_dev_name = NULL;
 
 #ifdef TRACE
 bool trace_mode = false;
