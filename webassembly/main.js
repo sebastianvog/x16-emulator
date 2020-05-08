@@ -179,6 +179,7 @@ function toggleAudio() {
                 Module.ccall("j2c_start_audio", "void", ["bool"], [false]);
             });
         }
+        canvas.focus();
     }
 
 function resetEmulator() {
