@@ -7,8 +7,7 @@ const code = document.getElementById('code');
 const progressElement = document.getElementById('progress');
 const spinnerElement = document.getElementById('spinner');
 
-
-// Getting Audio Context
+// Audio Context Setup
 var audioContext;
 
 window.addEventListener('load', init, false);
@@ -52,6 +51,10 @@ if (layouts.includes(lang)) {
 
 var url = new URL(window.location.href);
 var manifest_link = url.searchParams.get("manifest");
+                
+if (manifest_link && !manifest_link.endsWith('/')) {
+    manifest_link = manifest_link + '/';
+}
 
 var emuArguments = ['-keymap', lang];
 
@@ -73,7 +76,7 @@ var Module = {
                     if (manifest.start_prg) {
                         emuArguments.push('-prg', manifest.start_prg, '-run');
                     }
-
+                    console.log("Loading from manifest:")
                     console.log(manifest);
                     manifest.resources.forEach(element => {
                         element = manifest_link + element;
@@ -164,18 +167,19 @@ window.onerror = function () {
     };
 };
 
-
-
-function enableAudio(enable) {
-    if (enable === true) {
+function toggleAudio() {
         if (audioContext && audioContext.state != "running") {
             audioContext.resume().then(() => {
                 console.log("Resumed Audio.")
-                Module.ccall("j2c_start_audio", "void", ["void"], []);
+                Module.ccall("j2c_start_audio", "void", ["bool"], [true]);
+            });
+        } else if (audioContext && audioContext.state == "running") {
+            audioContext.suspend().then(function () {
+                console.log("Stopped Audio.")
+                Module.ccall("j2c_start_audio", "void", ["bool"], [false]);
             });
         }
     }
-}
 
 function resetEmulator() {
     j2c_reset = Module.cwrap("j2c_reset", "void", []);
@@ -184,10 +188,8 @@ function resetEmulator() {
 }
 
 function runCode() {
-    enableAudio(true);
     Module.ccall("j2c_paste", "void", ["string"], ['\nNEW\n' + code.value + '\nRUN\n']);
     canvas.focus();
-
 }
 
 function closeFs() {
