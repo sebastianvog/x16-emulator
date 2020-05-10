@@ -29,7 +29,7 @@
                         oncontextmenu="event.preventDefault()"></canvas>
                     <div class="close-fullscreen"><a href="javascript:closeFs();" title="Exit fullscreen">&times;</a>
                     </div>
-                    <div class="fullscreen-audio"><a href="javascript:toggleAudio();" title="Toggle Audio"><i class="material-icons" style="font-size:22px;">volume_up</i></a>
+                    <div class="fullscreen-audio"><a href="javascript:toggleAudio();" title="Toggle Audio"><i id="fullscreen_volume_icon" class="material-icons" style="font-size:22px;">volume_up</i></a>
                     </div>
                 </div>
 
@@ -49,7 +49,7 @@
                     <button type="button" onclick="openFs();">Fullscreen</button>
                     <button type="button" onclick="runCode();">Run</button>
                     <button type="button" onclick="resetEmulator();">Reset</button>
-                    <button type="button" onclick="toggleAudio();"><i class="material-icons" style="font-size:12px;">volume_up</i></button>
+                    <button type="button" onclick="toggleAudio();"><i id="volume_icon" class="material-icons" style="font-size:12px;">volume_up</i></button>
                 </div>
                 <div class="editor-middle">
 
