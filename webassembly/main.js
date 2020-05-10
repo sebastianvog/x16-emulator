@@ -6,6 +6,9 @@ const canvas = document.getElementById('canvas');
 const code = document.getElementById('code');
 const progressElement = document.getElementById('progress');
 const spinnerElement = document.getElementById('spinner');
+const volumeElementFullScreen = document.getElementById('fullscreen_volume_icon');
+const volumeElement = document.getElementById('volume_icon');
+
 
 // Audio Context Setup
 var audioContext;
@@ -170,12 +173,16 @@ window.onerror = function () {
 function toggleAudio() {
         if (audioContext && audioContext.state != "running") {
             audioContext.resume().then(() => {
+                volumeElement.innerHTML = "volume_up";
+                volumeElementFullScreen.innerHTML = "volume_up";
                 console.log("Resumed Audio.")
                 Module.ccall("j2c_start_audio", "void", ["bool"], [true]);
             });
         } else if (audioContext && audioContext.state == "running") {
             audioContext.suspend().then(function () {
                 console.log("Stopped Audio.")
+                volumeElement.innerHTML = "volume_off";
+                volumeElementFullScreen.innerHTML = "volume_off";
                 Module.ccall("j2c_start_audio", "void", ["bool"], [false]);
             });
         }
