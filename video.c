@@ -93,8 +93,8 @@ static uint8_t reg_composer[8];
 static uint8_t layer_line[2][SCREEN_WIDTH];
 static uint8_t sprite_line_col[SCREEN_WIDTH];
 static uint8_t sprite_line_z[SCREEN_WIDTH];
-static bool layer_line_empty[2];
-static bool sprite_line_empty;
+static bool layer_line_enable[2];
+static bool sprite_line_enable;
 
 float scan_pos_x;
 uint16_t scan_pos_y;
@@ -227,28 +227,29 @@ struct video_layer_properties
 	uint16_t hscroll;
 	uint16_t vscroll;
 
-	uint16_t mapw;
-	uint16_t maph;
+	uint8_t  mapw_log2;
+	uint8_t  maph_log2;
 	uint16_t tilew;
 	uint16_t tileh;
+	uint8_t  tilew_log2;
+	uint8_t  tileh_log2;
 
 	uint16_t mapw_max;
 	uint16_t maph_max;
 	uint16_t tilew_max;
 	uint16_t tileh_max;
-
-	uint16_t layerw;
-	uint16_t layerh;
-
 	uint16_t layerw_max;
 	uint16_t layerh_max;
 
-	uint8_t bits_per_pixel;
-
-	uint32_t tile_size;
+	uint8_t tile_size_log2;
 
 	int min_eff_x;
 	int max_eff_x;
+
+	uint8_t bits_per_pixel;
+	uint8_t first_color_pos;
+	uint8_t color_mask;
+	uint8_t color_fields_max;
 };
 
 struct video_layer_properties layer_properties[2];
@@ -266,10 +267,18 @@ calc_layer_eff_y(struct video_layer_properties *props, int y)
 }
 
 static uint32_t
-calc_layer_map_addr(struct video_layer_properties *props, int eff_x, int eff_y)
+calc_layer_map_addr_base2(struct video_layer_properties *props, int eff_x, int eff_y)
 {
-	return props->map_base + (eff_y / props->tileh * props->mapw + eff_x / props->tilew) * 2;
+	// Slightly faster on some platforms because we know that tilew and tileh are powers of 2.
+	return props->map_base + ((((eff_y >> props->tileh_log2) << props->mapw_log2) + (eff_x >> props->tilew_log2)) << 1);
 }
+
+//TODO: Unused in all current cases. Delete? Or leave commented as a reminder?
+//static uint32_t
+//calc_layer_map_addr(struct video_layer_properties *props, int eff_x, int eff_y)
+//{
+//	return props->map_base + ((eff_y / props->tileh) * props->mapw + (eff_x / props->tilew)) * 2;
+//}
 
 void refresh_layer_properties(uint8_t layer)
 {
@@ -294,36 +303,37 @@ void refresh_layer_properties(uint8_t layer)
 		props->vscroll = 0;
 	}
 
-	props->mapw = 0;
-	props->maph = 0;
+	uint16_t mapw = 0;
+	uint16_t maph = 0;
 	props->tilew = 0;
 	props->tileh = 0;
 
 	if (props->tile_mode || props->text_mode) {
-		props->mapw = 1 << (((reg_layer[layer][0] >> 4) & 3) + 5);
-		props->maph = 1 << (((reg_layer[layer][0] >> 6) & 3) + 5);
+		props->mapw_log2 = 5 + ((reg_layer[layer][0] >> 4) & 3);
+		props->maph_log2 = 5 + ((reg_layer[layer][0] >> 6) & 3);
+		mapw      = 1 << props->mapw_log2;
+		maph      = 1 << props->maph_log2;
+
 		// Scale the tiles or text characters according to TILEW and TILEH.
-		props->tilew = 1 << ((reg_layer[layer][2] & 1) + 3);
-		props->tileh = 1 << (((reg_layer[layer][2] >> 1) & 1) + 3);
+		props->tilew_log2 = 3 + (reg_layer[layer][2] & 1);
+		props->tileh_log2 = 3 + ((reg_layer[layer][2] >> 1) & 1);
+		props->tilew      = 1 << props->tilew_log2;
+		props->tileh      = 1 << props->tileh_log2;
 	} else if (props->bitmap_mode) {
 		// bitmap mode is basically tiled mode with a single huge tile
 		props->tilew = (reg_layer[layer][2] & 1) ? 640 : 320;
 		props->tileh = SCREEN_HEIGHT;
 	}
 
-	// We know mapw, maph, tilew, and tileh are powers of two, and any products of that set will be powers of two,
+	// We know mapw, maph, tilew, and tileh are powers of two in all cases except bitmap modes, and any products of that set will be powers of two,
 	// so there's no need to modulo against them if we have bitmasks we can bitwise-and against.
 
-	props->mapw_max = props->mapw - 1;
-	props->maph_max = props->maph - 1;
+	props->mapw_max = mapw - 1;
+	props->maph_max = maph - 1;
 	props->tilew_max = props->tilew - 1;
 	props->tileh_max = props->tileh - 1;
-
-	props->layerw = props->mapw * props->tilew;
-	props->layerh = props->maph * props->tileh;
-
-	props->layerw_max = props->layerw - 1;
-	props->layerh_max = props->layerh - 1;
+	props->layerw_max = (mapw * props->tilew) - 1;
+	props->layerh_max = (maph * props->tileh) - 1;
 
 	// Find min/max eff_x for bulk reading in tile data during draw.
 	if (prev_layerw_max != props->layerw_max || prev_hscroll != props->hscroll) {
@@ -343,7 +353,11 @@ void refresh_layer_properties(uint8_t layer)
 	}
 
 	props->bits_per_pixel = 1 << props->color_depth;
-	props->tile_size = (props->tilew * props->bits_per_pixel * props->tileh) >> 3;
+	props->tile_size_log2 = props->tilew_log2 + props->tileh_log2 + props->color_depth - 3;
+
+	props->first_color_pos  = 8 - props->bits_per_pixel;
+	props->color_mask       = (1 << props->bits_per_pixel) - 1;
+	props->color_fields_max = (8 >> props->color_depth) - 1;
 }
 
 struct video_sprite_properties
@@ -433,12 +447,6 @@ static void refresh_palette() {
 static void
 render_sprite_line(uint16_t y)
 {
-	if (!(reg_composer[0] & 0x40)) {
-		// sprites disabled
-		sprite_line_empty = true;
-		return;
-	}
-	sprite_line_empty = false;
 	for (int i = 0; i < SCREEN_WIDTH; i++) {
 		sprite_line_col[i] = 0;
 		sprite_line_z[i] = 0;
@@ -510,126 +518,169 @@ render_sprite_line(uint16_t y)
 }
 
 static void
-render_layer_line(uint8_t layer, uint16_t y)
+render_layer_line_text(uint8_t layer, uint16_t y)
 {
 	struct video_layer_properties *props = &layer_properties[layer];
 
-	bool enabled = (reg_composer[0] & (layer ? 0x20 : 0x10)) != 0;
+	uint8_t  tile_bytes[512]; // max 256 tiles, 2 bytes each.
+	uint32_t map_addr_begin = 0;
+	uint32_t map_addr_end   = 0;
 
-	if (!enabled) {
-		layer_line_empty[layer] = true;
-	} else {
-		layer_line_empty[layer] = false;
+	int eff_y = calc_layer_eff_y(props, y);
+	{
+		map_addr_begin = calc_layer_map_addr_base2(props, props->min_eff_x, eff_y);
+		map_addr_end   = calc_layer_map_addr_base2(props, props->max_eff_x, eff_y);
+		int size       = (map_addr_end - map_addr_begin) + 2;
 
-		// Load in tile bytes if not in bitmap mode.
-		uint8_t tile_bytes[512]; // max 256 tiles, 2 bytes each.
-		uint32_t map_addr_begin = 0;
-		uint32_t map_addr_end = 0;
+		video_space_read_range(tile_bytes, map_addr_begin, size);
+	}
 
-		if (!props->bitmap_mode) {
-			int size;
-			int eff_y = calc_layer_eff_y(props, y);
-			map_addr_begin = calc_layer_map_addr(props, props->min_eff_x, eff_y);
-			map_addr_end = calc_layer_map_addr(props, props->max_eff_x, eff_y);
-			size = (map_addr_end - map_addr_begin) + 2;
+	// Render tile line.
+	for (int x = 0; x < SCREEN_WIDTH; x++) {
+		uint8_t col_index = 0;
 
-			video_space_read_range(tile_bytes, map_addr_begin, size);
+		// Scrolling
+		int eff_x = calc_layer_eff_x(props, x);
+
+		int xx = eff_x & props->tilew_max;
+		int yy = eff_y & props->tileh_max;
+
+		uint16_t tile_index     = 0;
+		uint8_t  fg_color       = 0;
+		uint8_t  bg_color       = 0;
+
+		// extract all information from the map
+		uint32_t map_addr = calc_layer_map_addr_base2(props, eff_x, eff_y) - map_addr_begin;
+
+		uint8_t byte0 = tile_bytes[map_addr];
+		uint8_t byte1 = tile_bytes[map_addr + 1];
+
+		tile_index = byte0;
+
+		if (!props->text_mode_256c) {
+			fg_color = byte1 & 15;
+			bg_color = byte1 >> 4;
+		} else {
+			fg_color = byte1;
+			bg_color = 0;
 		}
 
-		// Render tile line.
-		for (int x = 0; x < SCREEN_WIDTH; x++) {
-			uint8_t col_index = 0;
-			int xx, yy;
+		// offset within tilemap of the current tile
+		uint32_t tile_start = tile_index << props->tile_size_log2;
+		// additional bytes to reach the correct line of the tile
+		uint32_t y_add		= (yy << props->tilew_log2) >> 3;
+		// additional bytes to reach the correct column of the tile
+		uint16_t x_add       = xx >> 3;
+		uint32_t tile_offset = tile_start + y_add + x_add;
+		uint8_t  s           = video_space_read(props->tile_base + tile_offset);
 
-			int eff_x = x;
-			int eff_y = y;
+		// convert tile byte to indexed color
+		col_index = (s >> (7 - (xx & 7))) & 1;
+		col_index = col_index ? fg_color : bg_color;
 
-			// Scrolling
-			if (!props->bitmap_mode) {
-				eff_x = calc_layer_eff_x(props, x);
-				eff_y = calc_layer_eff_y(props, y);
-			}
+		layer_line[layer][x] = col_index;
+	}
+}
 
-			if (props->bitmap_mode) {
-				xx = eff_x % props->tilew;
-				yy = eff_y % props->tileh;
-			} else {
-				xx = eff_x & props->tilew_max;
-				yy = eff_y & props->tileh_max;
-			}
+static void
+render_layer_line_tile(uint8_t layer, uint16_t y)
+{
+	struct video_layer_properties *props = &layer_properties[layer];
 
-			uint16_t tile_index = 0;
-			uint8_t fg_color = 0;
-			uint8_t bg_color = 0;
-			uint8_t palette_offset = 0;
+	// Load in tile bytes if not in bitmap mode.
+	uint8_t  tile_bytes[512]; // max 256 tiles, 2 bytes each.
+	uint32_t map_addr_begin = 0;
+	uint32_t map_addr_end   = 0;
 
-			// extract all information from the map
-			if (props->bitmap_mode) {
-				tile_index = 0;
-				palette_offset = reg_layer[layer][4] & 0xf;
-			} else {
-				uint32_t map_addr = calc_layer_map_addr(props, eff_x, eff_y) - map_addr_begin;
+	int eff_y = calc_layer_eff_y(props, y);
+	{
+		map_addr_begin = calc_layer_map_addr_base2(props, props->min_eff_x, eff_y);
+		map_addr_end   = calc_layer_map_addr_base2(props, props->max_eff_x, eff_y);
+		int size           = (map_addr_end - map_addr_begin) + 2;
 
-				uint8_t byte0 = tile_bytes[map_addr];
-				uint8_t byte1 = tile_bytes[map_addr + 1];
+		video_space_read_range(tile_bytes, map_addr_begin, size);
+	}
 
-				if (props->text_mode) {
-					tile_index = byte0;
+	// Render tile line.
+	for (int x = 0; x < SCREEN_WIDTH; x++) {
+		int eff_x = calc_layer_eff_x(props, x);
 
-					if (!props->text_mode_256c) {
-						fg_color = byte1 & 15;
-						bg_color = byte1 >> 4;
-					} else {
-						fg_color = byte1;
-						bg_color = 0;
-					}
-				} else if (props->tile_mode) {
-					tile_index = byte0 | ((byte1 & 3) << 8);
+		int xx = eff_x & props->tilew_max;
+		int yy = eff_y & props->tileh_max;
 
-					// Tile Flipping
-					bool vflip = (byte1 >> 3) & 1;
-					bool hflip = (byte1 >> 2) & 1;
-					if (vflip) {
-						yy = yy ^ (props->tileh - 1);
-					}
-					if (hflip) {
-						xx = xx ^ (props->tilew - 1);
-					}
+		uint16_t tile_index     = 0;
+		uint8_t  palette_offset = 0;
 
-					palette_offset = byte1 >> 4;
-				}
-			}
+		// extract all information from the map
+		uint32_t map_addr = calc_layer_map_addr_base2(props, eff_x, eff_y) - map_addr_begin;
 
-			// offset within tilemap of the current tile
-			uint32_t tile_start = tile_index * props->tile_size;
-			// additional bytes to reach the correct line of the tile
-			uint32_t y_add = (yy * props->tilew * props->bits_per_pixel) >> 3;
-			// additional bytes to reach the correct column of the tile
-			uint16_t x_add = (xx * props->bits_per_pixel) >> 3;
-			uint32_t tile_offset = tile_start + y_add + x_add;
-			uint8_t s = video_space_read(props->tile_base + tile_offset);
+		uint8_t byte0 = tile_bytes[map_addr];
+		uint8_t byte1 = tile_bytes[map_addr + 1];
 
-			// convert tile byte to indexed color
-			if (props->bits_per_pixel == 1) {
-				col_index = (s >> (7 - (xx & 7))) & 1;
+		tile_index = byte0 | ((byte1 & 3) << 8);
 
-				if (props->text_mode) {
-					col_index = col_index ? fg_color : bg_color;
-				}
-			} else if (props->bits_per_pixel == 2) {
-				col_index = (s >> (6 - ((xx & 3) << 1))) & 3;
-			} else if (props->bits_per_pixel == 4) {
-				col_index = (s >> (4 - ((xx & 1) << 2))) & 0xf;
-			} else if (props->bits_per_pixel == 8) {
-				col_index = s;
-			}
-
-			// Apply Palette Offset
-			if (palette_offset && col_index > 0 && col_index < 16) {
-				col_index += palette_offset << 4;
-			}
-			layer_line[layer][x] = col_index;
+		// Tile Flipping
+		bool vflip = (byte1 >> 3) & 1;
+		bool hflip = (byte1 >> 2) & 1;
+		if (vflip) {
+			yy = yy ^ (props->tileh_max);
 		}
+		if (hflip) {
+			xx = xx ^ (props->tilew_max);
+		}
+
+		palette_offset = byte1 >> 4;
+
+		// offset within tilemap of the current tile
+		uint32_t tile_start = tile_index << props->tile_size_log2;
+		// additional bytes to reach the correct line of the tile
+		uint32_t y_add = (yy << (props->tilew_log2 + props->color_depth)) >> 3;
+		// additional bytes to reach the correct column of the tile
+		uint16_t x_add       = (xx << props->color_depth) >> 3;
+		uint32_t tile_offset = tile_start + y_add + x_add;
+		uint8_t  s           = video_space_read(props->tile_base + tile_offset);
+
+		// convert tile byte to indexed color
+		uint8_t col_index = (s >> (props->first_color_pos - ((xx & props->color_fields_max) << props->color_depth))) & props->color_mask;
+
+		// Apply Palette Offset
+		if (palette_offset && col_index > 0 && col_index < 16) {
+			col_index += palette_offset << 4;
+		}
+		layer_line[layer][x] = col_index;
+	}
+}
+
+
+static void
+render_layer_line_bitmap(uint8_t layer, uint16_t y)
+{
+	struct video_layer_properties *props = &layer_properties[layer];
+
+	int yy = y % props->tileh;
+	// additional bytes to reach the correct line of the tile
+	uint32_t y_add = (yy * props->tilew * props->bits_per_pixel) >> 3;
+
+	// Render tile line.
+	for (int x = 0; x < SCREEN_WIDTH; x++) {
+		int xx = x % props->tilew;
+
+		// extract all information from the map
+		uint8_t palette_offset = reg_layer[layer][4] & 0xf;
+
+		// additional bytes to reach the correct column of the tile
+		uint16_t x_add = (xx * props->bits_per_pixel) >> 3;
+		uint32_t tile_offset = y_add + x_add;
+		uint8_t s = video_space_read(props->tile_base + tile_offset);
+
+		// convert tile byte to indexed color
+		uint8_t col_index = (s >> (props->first_color_pos - ((xx & props->color_fields_max) << props->color_depth))) & props->color_mask;
+
+		// Apply Palette Offset
+		if (palette_offset && col_index > 0 && col_index < 16) {
+			col_index += palette_offset << 4;
+		}
+		layer_line[layer][x] = col_index;
 	}
 }
 
@@ -664,10 +715,34 @@ render_line(uint16_t y)
 	uint16_t vstart = reg_composer[6] << 1;
 	uint16_t vstop = reg_composer[7] << 1;
 
-	int eff_y = (reg_composer[2] * (y - vstart)) / 128;
-	render_sprite_line(eff_y);
-	render_layer_line(0, eff_y);
-	render_layer_line(1, eff_y);
+	int eff_y = (reg_composer[2] * (y - vstart)) >> 7;
+
+	uint8_t dc_video = reg_composer[0];
+	layer_line_enable[0] = dc_video & 0x10;
+	layer_line_enable[1] = dc_video & 0x20;
+	sprite_line_enable   = dc_video & 0x40;
+
+	if (sprite_line_enable) {
+		render_sprite_line(eff_y);
+	}
+	if (layer_line_enable[0]) {
+		if (layer_properties[0].text_mode) {
+			render_layer_line_text(0, eff_y);
+		} else if (layer_properties[0].bitmap_mode) {
+			render_layer_line_bitmap(0, eff_y);
+		} else {
+			render_layer_line_tile(0, eff_y);
+		}
+	}
+	if (layer_line_enable[1]) {
+		if (layer_properties[1].text_mode) {
+			render_layer_line_text(1, eff_y);
+		} else if (layer_properties[1].bitmap_mode) {
+			render_layer_line_bitmap(1, eff_y);
+		} else {
+			render_layer_line_tile(1, eff_y);
+		}
+	}
 
 	uint8_t col_line[SCREEN_WIDTH];
 
@@ -694,22 +769,22 @@ render_line(uint16_t y)
 
 			int eff_x[LAYER_PIXELS_PER_ITERATION];
 			for (int i = 0; i < LAYER_PIXELS_PER_ITERATION; ++i) {
-				eff_x[i] = (reg_composer[1] * (x + i - hstart)) / 128;
+				eff_x[i] = (reg_composer[1] * (x + i - hstart)) >> 7;
 			}
 
-			if (!sprite_line_empty) {
+			if (sprite_line_enable) {
 				for (int i = 0; i < LAYER_PIXELS_PER_ITERATION; ++i) {
 					spr_col_index[i] = sprite_line_col[eff_x[i]];
 				}
 			}
 
-			if (!layer_line_empty[0]) {
+			if (layer_line_enable[0]) {
 				for (int i = 0; i < LAYER_PIXELS_PER_ITERATION; ++i) {
 					l1_col_index[i] = layer_line[0][eff_x[i]];
 				}
 			}
 
-			if (!layer_line_empty[1]) {
+			if (layer_line_enable[1]) {
 				for (int i = 0; i < LAYER_PIXELS_PER_ITERATION; ++i) {
 					l2_col_index[i] = layer_line[1][eff_x[i]];
 				}
@@ -759,11 +834,17 @@ render_line(uint16_t y)
 		}
 
 		// Add border after if required.
-		if (hstart > 0 || hstop < SCREEN_WIDTH || vstart > 0 || vstop < SCREEN_HEIGHT) {
-			for (uint16_t x = 0; x < SCREEN_WIDTH; x++) {
-				if (x < hstart || x > hstop || y < vstart || y > vstop) {
-					col_line[x] = border_color;
-				}
+		if (y < vstart || y > vstop) {
+			uint32_t border_fill = border_color;
+			border_fill     = border_fill | (border_fill << 8);
+			border_fill     = border_fill | (border_fill << 16);
+			memset(col_line, border_fill, SCREEN_WIDTH);
+		} else {
+			for (uint16_t x = 0; x < hstart; ++x) {
+				col_line[x] = border_color;
+			}
+			for (uint16_t x = hstop; x < SCREEN_WIDTH; ++x) {
+				col_line[x] = border_color;
 			}
 		}
 	}
