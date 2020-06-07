@@ -88,7 +88,7 @@ var Module = {
                         if (manifest.start_bas) {
                             emuArguments.push('-bas', manifest.start_bas, '-run');
                         }
-                        else if (manifestObject.start_prg) {
+                        else if (manifest.start_prg) {
                             console.log('Adding start PRG: ', manifest.start_prg)
                             emuArguments.push('-prg', manifest.start_prg, '-run');
                         }
