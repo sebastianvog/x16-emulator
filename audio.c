@@ -47,7 +47,6 @@ audio_callback(void *userdata, Uint8 *stream, int len)
 void
 audio_init(const char *dev_name, int num_audio_buffers)
 {
-	printf("\t%lu\n", sizeof(int));
 	if (audio_dev > 0) {
 		audio_close();
 	}
