@@ -12,12 +12,12 @@
 #include <stdlib.h>
 
 #define SAMPLERATE (25000000 / 512)
-#define SAMPLES_PER_BUFFER (256)
+#define SAMPLES_PER_BUFFER (1024)
 
 static SDL_AudioDeviceID audio_dev;
 static int               vera_clks = 0;
 static int               cpu_clks  = 0;
-static int16_t **        buffers;
+static float **          buffers;
 static int               rdidx    = 0;
 static int               wridx    = 0;
 static int               buf_cnt  = 0;
@@ -26,7 +26,7 @@ static int               num_bufs = 0;
 static void
 audio_callback(void *userdata, Uint8 *stream, int len)
 {
-	int expected = 2 * SAMPLES_PER_BUFFER * sizeof(int16_t);
+	int expected = 2 * SAMPLES_PER_BUFFER * sizeof(float);
 	if (len != expected) {
 		printf("Audio buffer size mismatch! (expected: %d, got: %d)\n", expected, len);
 		return;
@@ -47,6 +47,7 @@ audio_callback(void *userdata, Uint8 *stream, int len)
 void
 audio_init(const char *dev_name, int num_audio_buffers)
 {
+	printf("\t%lu\n", sizeof(int));
 	if (audio_dev > 0) {
 		audio_close();
 	}
@@ -72,7 +73,7 @@ audio_init(const char *dev_name, int num_audio_buffers)
 	// Setup SDL audio
 	memset(&desired, 0, sizeof(desired));
 	desired.freq     = SAMPLERATE;
-	desired.format   = AUDIO_S16SYS;
+	desired.format   = AUDIO_F32SYS;
 	desired.samples  = SAMPLES_PER_BUFFER;
 	desired.channels = 2;
 	desired.callback = audio_callback;
@@ -143,9 +144,9 @@ audio_render(int cpu_clocks)
 
 			if (buf_available) {
 				// Mix PSG, PCM and YM output
-				int16_t *buf = buffers[wridx];
+				float *buf = buffers[wridx];
 				for (int i = 0; i < 2 * SAMPLES_PER_BUFFER; i++) {
-					buf[i] = ((int)psg_buf[i] + (int)pcm_buf[i] + (int)ym_buf[i]) / 3;
+					buf[i] = ((int)psg_buf[i] + (int)pcm_buf[i] + (int)ym_buf[i]) / (3.0f * SAMPLERATE);
 				}
 
 				SDL_LockAudioDevice(audio_dev);
